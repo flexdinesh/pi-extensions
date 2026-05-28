@@ -121,16 +121,28 @@ npm test
 
 ## Install
 
-Install the whole monorepo as a local Pi package:
+Install only this extension as a local Pi package. This is the recommended path for Pi because it loads the package directly from disk without copying or publishing it:
 
 ```bash
-pi install /Users/dineshpandiyan/workspace/pi-extensions
+pi install /home/theuser/workspace/pi-extensions/packages/extensions/pi-mode-guard
 ```
 
-Or symlink only this extension package for auto-discovery:
+For a project-local install, add `-l`:
 
 ```bash
-ln -s /Users/dineshpandiyan/workspace/pi-extensions/packages/extensions/pi-mode-guard ~/.pi/agent/extensions/mode-guard
+pi install -l /home/theuser/workspace/pi-extensions/packages/extensions/pi-mode-guard
+```
+
+Install the whole monorepo as a local Pi package when you want every extension in this repository:
+
+```bash
+pi install /home/theuser/workspace/pi-extensions
+```
+
+You can also symlink only this extension package for Pi auto-discovery:
+
+```bash
+ln -s /home/theuser/workspace/pi-extensions/packages/extensions/pi-mode-guard ~/.pi/agent/extensions/mode-guard
 ```
 
 Restart pi or run `/reload` to load the extension.

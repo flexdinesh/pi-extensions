@@ -24,13 +24,13 @@ The display dims when paused and highlights when running.
 Install the whole monorepo as a local Pi package:
 
 ```bash
-pi install /Users/dineshpandiyan/workspace/pi-extensions
+pi install /home/theuser/workspace/pi-extensions
 ```
 
 Or symlink only this extension package for auto-discovery:
 
 ```bash
-ln -s /Users/dineshpandiyan/workspace/pi-extensions/packages/extensions/pi-session-timer ~/.pi/agent/extensions/session-timer
+ln -s /home/theuser/workspace/pi-extensions/packages/extensions/pi-session-timer ~/.pi/agent/extensions/session-timer
 ```
 
 Restart pi or run `/reload` to load the extension.
