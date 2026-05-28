@@ -1,0 +1,23 @@
+{
+  "name": "@flexdinesh/pi-extensions",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Central pnpm monorepo for Flex Dinesh's Pi extensions",
+  "packageManager": "pnpm@11.1.2",
+  "scripts": {
+    "test": "pnpm -r --if-present run test"
+  },
+  "workspaces": [
+    "packages/extensions/*"
+  ],
+  "keywords": [
+    "pi-package",
+    "pi-extension"
+  ],
+  "pi": {
+    "extensions": [
+      "./packages/extensions/*/index.ts"
+    ]
+  }
+}

@@ -1,0 +1,136 @@
+# pi-mode-guard
+
+Three-mode workflow for the [pi coding agent](https://github.com/earendil-works/pi/tree/main/packages/coding-agent).
+
+## What it does
+
+Enforces **Plan mode** (read-only) by default. You must explicitly switch to **Build mode** to make changes.
+
+- **Conversation mode** — `edit` and `write` tools are blocked. Guarded bash/path activity requires confirmation. Non-destructive read/inspect commands pass freely unless they reference guarded paths. The model is guided to explore, discuss, ask questions, and avoid steering prematurely toward implementation.
+- **Plan mode** — same read-only permissions as Conversation mode, but the model is guided toward analysis and planning.
+- **Build mode** — all tools unlocked. Destructive bash and guarded external path activity still require confirmation. Runtime binaries such as `node` and `python` run without extra mode-guard prompts unless another rule matches.
+
+The active mode persists across sessions.
+
+## How to use
+
+| Action                  | Command                                      |
+| ----------------------- | -------------------------------------------- |
+| Enter Conversation mode | `/convo`                                     |
+| Enter Plan mode         | `/plan`                                      |
+| Enter Build mode        | `/build`                                     |
+| Cycle mode              | `Ctrl + Alt + P` _(Plan → Build → Conversation; queues if agent is busy)_ |
+
+The status bar shows the current mode:
+
+- 💬 convo (Conversation mode)
+- 🔒 plan (Plan mode)
+- Build 🚀 (Build mode)
+
+## Guard rules
+
+Guard checks are explicit named rules so each mode can choose which rules to apply.
+
+Conversation and Plan currently enable all guard rules. Build enables the high-risk bash/path rules and intentionally excludes `runtime-binary`.
+
+| Rule | Enabled in | Applies to | Behavior |
+| ---- | ---------- | ---------- | -------- |
+| `destructive-bash` | Conversation, Plan, Build | `bash.command` | Prompts for common mutating/destructive commands such as `rm`, `git commit`, `npm install`, unsafe redirects, `sudo`, etc. Safe redirects to `/dev/null` are ignored. |
+| `runtime-binary` | Conversation, Plan | `bash.command` | Prompts when the command text contains exact binary words for `python`, `python2`, `python3`, `node`, `ruby`, `perl`, `php`, or `lua`, including version/help calls. |
+| `home-path-outside-cwd` | Conversation, Plan, Build | `bash.command`, `read.path`, `grep.path`, `find.path`, `ls.path` | Prompts for home-like paths outside the current working directory and outside configured allowed external dirs. |
+| `absolute-path-outside-cwd` | Conversation, Plan, Build | `bash.command`, `read.path`, `grep.path`, `find.path`, `ls.path` | Prompts for Unix absolute paths outside the current working directory and outside configured allowed external dirs. |
+
+Build mode does not enable `runtime-binary`, so normal build and test commands using runtimes stay frictionless.
+
+When multiple rules match, pi prompts once per rule in this order for bash commands. Build skips the `runtime-binary` step.
+
+1. `destructive-bash`
+2. `runtime-binary`
+3. `home-path-outside-cwd`
+4. `absolute-path-outside-cwd`
+
+If the same path matches both path rules, only the more specific `home-path-outside-cwd` rule prompts. If a rule finds multiple paths, one prompt lists all matched paths. In no-UI mode, guarded actions are blocked because confirmation is impossible.
+
+## Path safety configuration
+
+The path rules allow anything inside the current working directory. To allow known external source trees, configure `allowedExternalDirs`.
+
+Config files are loaded on session start/reload only:
+
+1. Global: `~/.pi/mode-guard.json`
+2. Project-local: `.pi-mode-guard.json` in the current working directory
+
+Both files use the same schema and are combined:
+
+```json
+{
+  "allowedExternalDirs": [
+    "~/workspace/other-repo",
+    "$HOME/src/shared",
+    "../sibling-repo"
+  ]
+}
+```
+
+Config path handling:
+
+- `~`, `~/`, `$HOME`, and `${HOME}` are expanded.
+- Relative entries are resolved relative to the config file location.
+  - Global relative paths resolve from `~/.pi/`.
+  - Project-local relative paths resolve from the project cwd.
+- Allowed directories include all descendants recursively.
+- Invalid config files are ignored with a warning.
+
+Guarded path patterns include:
+
+- `~`, `~/...`
+- `$HOME`, `$HOME/...`
+- `${HOME}`, `${HOME}/...`
+- `/Users/...`
+- `/home/...`
+- `/root/...`
+- any Unix absolute path like `/etc/hosts`, `/tmp/foo`, `/var/log/...`
+
+URL path portions are skipped to avoid prompts for URLs such as `https://example.com/api/v1`.
+
+Safe shell redirections to `/dev/null` are also skipped during bash path checks. This applies only to redirect syntax such as `2>/dev/null`, `> /dev/null`, `&>>/dev/null`, and `</dev/null`; a normal path reference like `cat /dev/null` is still treated as an absolute path outside the current working directory.
+
+## How it works
+
+The extension hooks into pi's event system:
+
+- **`session_start`** — loads guard config, restores the previous mode, or defaults to Plan on a fresh session.
+- **`tool_call`** — blocks `edit`/`write` in Conversation and Plan modes. Applies the active mode's named guard rules and prompts for confirmation.
+- **`before_agent_start`** — appends a mode-specific reminder to the per-turn system prompt when in Conversation or Plan mode.
+- **`turn_end`** — applies any queued mode toggle.
+- **`session_shutdown`** — clears pending toggle state.
+
+## Test
+
+From the monorepo root:
+
+```bash
+pnpm --filter @flexdinesh/pi-mode-guard test
+```
+
+Or from this package directory:
+
+```bash
+npm test
+```
+
+## Install
+
+Install the whole monorepo as a local Pi package:
+
+```bash
+pi install /Users/dineshpandiyan/workspace/pi-extensions
+```
+
+Or symlink only this extension package for auto-discovery:
+
+```bash
+ln -s /Users/dineshpandiyan/workspace/pi-extensions/packages/extensions/pi-mode-guard ~/.pi/agent/extensions/mode-guard
+```
+
+Restart pi or run `/reload` to load the extension.
