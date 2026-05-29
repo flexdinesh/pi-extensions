@@ -3,6 +3,7 @@ import { Key } from "@earendil-works/pi-tui";
 import { loadModeGuardConfig, type ModeGuardConfig } from "./config.js";
 import { evaluateToolCallGuards, type GuardFinding } from "./guards.js";
 import { DEFAULT_MODE, MODE_CONFIG, MODE_GUARD_RULES, MODE_ORDER, applyModeSystemReminder, isMode, modeLabel, nextMode, type Mode } from "./modes.js";
+import { formatToolCallForPrompt } from "./prompt.js";
 
 const EMPTY_MODE_GUARD_CONFIG: ModeGuardConfig = {
   allowedExternalDirs: [],
@@ -106,15 +107,16 @@ export default function modeGuardExtension(pi: ExtensionAPI): void {
     });
 
     for (const finding of findings) {
+      const toolCallPrompt = formatToolCallForPrompt(event.toolName, event.input);
       const prompt = formatGuardFinding(finding);
       if (!ctx.hasUI) {
         return {
           block: true,
-          reason: `${modeLabel(activeMode)} mode: ${finding.rule} blocked (no UI for confirmation).\n${prompt}`,
+          reason: `${modeLabel(activeMode)} mode: ${finding.rule} blocked (no UI for confirmation).\n${toolCallPrompt}\n\n${prompt}`,
         };
       }
 
-      const ok = await ctx.ui.confirm(`${finding.rule} in ${activeMode} mode`, `Allow?\n\nTool: ${event.toolName}\n\n${prompt}`);
+      const ok = await ctx.ui.confirm(`${finding.rule} in ${activeMode} mode`, `Allow?\n\n${toolCallPrompt}\n\n${prompt}`);
       if (!ok) {
         return { block: true, reason: "Blocked by user" };
       }
